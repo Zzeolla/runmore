@@ -21,11 +21,39 @@ dependencies:
   flutter_naver_map: ^1.4.1+1
   flutter_dotenv: ^6.0.0
   supabase_flutter: ^2.10.3
+  flutter_foreground_task: ^9.1.0
+  fl_chart: ^0.69.0
+  drift: ^2.30.0
+  uuid: ^4.5.2
+  sign_in_with_apple: ^7.0.1
+  sqlite3_flutter_libs: ^0.5.41
+  flutter_tts: ^4.2.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
+
+  drift_dev: ^2.30.0
+  build_runner: ^2.4.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_foreground: "assets/icon/ic_launcher_foreground.png"
+  adaptive_icon_background: "assets/icon/ic_launcher_background.png"
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  android: true
+  ios: true
+  color: "#FFFFFF"
+  android_12:
+    color: "#FFFFFF"
 
 flutter:
 
@@ -33,6 +61,9 @@ flutter:
 
   assets:
     - .env
+    - assets/img/g-logo.png
+    - assets/img/kakao_bubble.png
+    - assets/icon/splash_icon.png
 
   fonts:
     - family: NotoSansKR

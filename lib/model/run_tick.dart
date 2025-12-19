@@ -4,11 +4,24 @@ class RunTick {
   final double lng;           // 경도 (longitude)
   final double? altitude;     // 고도 (altitude, optional)
   final double speedMps;      // 순간 속도 (m/s)
+  final bool isPaused;
   RunTick({
     required this.ts,
     required this.lat,
     required this.lng,
     this.altitude,
     required this.speedMps,
+    required this.isPaused,
   });
+}
+
+extension RunTickJson on RunTick {
+  Map<String, dynamic> toJson() => {
+    'ts': ts.toUtc().toIso8601String(),
+    'lat': lat,
+    'lng': lng,
+    if (altitude != null) 'altitude': altitude,
+    'speed': speedMps,
+    'isPaused': isPaused,
+  };
 }

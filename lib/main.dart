@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:provider/provider.dart';
-import 'package:runmore/screen/live_start_screen.dart';
+import 'package:runmore/db/app_database.dart';
+import 'package:runmore/provider/live_share_provider.dart';
+import 'package:runmore/provider/user_provider.dart';
 import 'package:runmore/screen/live_view_screen.dart';
+import 'package:runmore/screen/login_screen.dart';
+import 'package:runmore/screen/main_screen.dart';
+import 'package:runmore/screen/splash_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'provider/run_provider.dart';
-import 'screen/run_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterForegroundTask.initCommunicationPort();
   await dotenv.load(fileName: ".env");
 
   final naver = FlutterNaverMap();
@@ -24,12 +30,19 @@ Future<void> main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
+  final db = AppDatabase();
+
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => RunProvider()),
-      ],
-      child: const RunmoreApp(),
+    WithForegroundTask(
+      child: MultiProvider(
+        providers: [
+          Provider<AppDatabase>.value(value: db),
+          ChangeNotifierProvider(create: (_) => RunProvider()),
+          ChangeNotifierProvider(create: (_) => UserProvider()),
+          ChangeNotifierProvider(create: (_) => LiveShareProvider()),
+        ],
+        child: const RunmoreApp(),
+      ),
     ),
   );
 }
@@ -49,7 +62,9 @@ class RunmoreApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (_) => const LiveStartScreen(),
+        '/': (_) => const SplashScreen(),
+        '/main' : (_) => const MainScreen(),
+        '/login' : (_) => const LoginScreen(),
         '/view': (ctx) {
           final arg = ModalRoute.of(ctx)?.settings.arguments;
           return LiveViewScreen(initialShareCode: arg as String?);
