@@ -39,7 +39,7 @@ class UserProvider extends ChangeNotifier {
 
     // 1) users 테이블 조회
     final data = await _client
-        .from('users')
+        .from('app_users')
         .select()
         .eq('id', uid)
         .maybeSingle();
@@ -48,7 +48,7 @@ class UserProvider extends ChangeNotifier {
       // 2) 없으면 생성
       final nickname = _defaultNickname(authUser);
 
-      await _client.from('users').insert({'id': uid, 'nickname': nickname});
+      await _client.from('app_users').insert({'id': uid, 'nickname': nickname});
 
       _currentUser = AppUser(
         id: uid,

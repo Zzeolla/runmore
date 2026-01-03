@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:runmore/screen/badge_screen.dart';
+import 'package:runmore/screen/history/history_screen.dart';
 import 'package:runmore/screen/location_share/location_share_screen.dart';
 import 'package:runmore/screen/my_info_screen.dart';
-import 'package:runmore/screen/history_screen.dart';
 import 'package:runmore/screen/run/run_screen.dart';
 
 class MainScreen extends StatefulWidget {

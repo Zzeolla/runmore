@@ -4,7 +4,10 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:provider/provider.dart';
 import 'package:runmore/db/app_database.dart';
+import 'package:runmore/provider/health_summary_provider.dart';
+import 'package:runmore/provider/health_summary_provider_impl.dart';
 import 'package:runmore/provider/live_share_provider.dart';
+import 'package:runmore/provider/history_provider.dart';
 import 'package:runmore/provider/user_provider.dart';
 import 'package:runmore/screen/live_view_screen.dart';
 import 'package:runmore/screen/login_screen.dart';
@@ -39,7 +42,32 @@ Future<void> main() async {
           Provider<AppDatabase>.value(value: db),
           ChangeNotifierProvider(create: (_) => RunProvider()),
           ChangeNotifierProvider(create: (_) => UserProvider()),
-          ChangeNotifierProvider(create: (_) => LiveShareProvider()),
+          ChangeNotifierProxyProvider<UserProvider, LiveShareProvider>(
+            create: (_) => LiveShareProvider(),
+            update: (context, user, live) {
+              live!.updateAuth(
+                isLoggedIn: user.isLoggedIn,
+                userId: user.userId,
+              );
+              return live;
+            },
+          ),
+          ChangeNotifierProxyProvider<UserProvider, HistoryProvider>(
+            create: (context) => HistoryProvider(
+              db: context.read<AppDatabase>(),
+            ),
+            update: (context, user, history) {
+              // history는 절대 null 아님
+              history!.updateAuth(
+                isLoggedIn: user.isLoggedIn,
+                userId: user.userId,
+              );
+              return history;
+            },
+          ),
+          Provider<HealthSummaryProvider>(
+            create: (_) => HealthSummaryProviderImpl(),
+          ),
         ],
         child: const RunmoreApp(),
       ),

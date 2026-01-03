@@ -83,6 +83,26 @@ class $RunsTable extends Runs with TableInfo<$RunsTable, Run> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _avgHrMeta = const VerificationMeta('avgHr');
+  @override
+  late final GeneratedColumn<int> avgHr = GeneratedColumn<int>(
+    'avg_hr',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _avgCadenceMeta = const VerificationMeta(
+    'avgCadence',
+  );
+  @override
+  late final GeneratedColumn<int> avgCadence = GeneratedColumn<int>(
+    'avg_cadence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _pathJsonMeta = const VerificationMeta(
     'pathJson',
   );
@@ -126,6 +146,8 @@ class $RunsTable extends Runs with TableInfo<$RunsTable, Run> {
     elapsedSeconds,
     avgSpeedMps,
     calories,
+    avgHr,
+    avgCadence,
     pathJson,
     segmentsJson,
     createdAt,
@@ -202,6 +224,18 @@ class $RunsTable extends Runs with TableInfo<$RunsTable, Run> {
         calories.isAcceptableOrUnknown(data['calories']!, _caloriesMeta),
       );
     }
+    if (data.containsKey('avg_hr')) {
+      context.handle(
+        _avgHrMeta,
+        avgHr.isAcceptableOrUnknown(data['avg_hr']!, _avgHrMeta),
+      );
+    }
+    if (data.containsKey('avg_cadence')) {
+      context.handle(
+        _avgCadenceMeta,
+        avgCadence.isAcceptableOrUnknown(data['avg_cadence']!, _avgCadenceMeta),
+      );
+    }
     if (data.containsKey('path_json')) {
       context.handle(
         _pathJsonMeta,
@@ -270,6 +304,14 @@ class $RunsTable extends Runs with TableInfo<$RunsTable, Run> {
         DriftSqlType.int,
         data['${effectivePrefix}calories'],
       ),
+      avgHr: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}avg_hr'],
+      ),
+      avgCadence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}avg_cadence'],
+      ),
       pathJson:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -302,6 +344,8 @@ class Run extends DataClass implements Insertable<Run> {
   final int elapsedSeconds;
   final double avgSpeedMps;
   final int? calories;
+  final int? avgHr;
+  final int? avgCadence;
   final String pathJson;
   final String segmentsJson;
   final DateTime createdAt;
@@ -313,6 +357,8 @@ class Run extends DataClass implements Insertable<Run> {
     required this.elapsedSeconds,
     required this.avgSpeedMps,
     this.calories,
+    this.avgHr,
+    this.avgCadence,
     required this.pathJson,
     required this.segmentsJson,
     required this.createdAt,
@@ -328,6 +374,12 @@ class Run extends DataClass implements Insertable<Run> {
     map['avg_speed_mps'] = Variable<double>(avgSpeedMps);
     if (!nullToAbsent || calories != null) {
       map['calories'] = Variable<int>(calories);
+    }
+    if (!nullToAbsent || avgHr != null) {
+      map['avg_hr'] = Variable<int>(avgHr);
+    }
+    if (!nullToAbsent || avgCadence != null) {
+      map['avg_cadence'] = Variable<int>(avgCadence);
     }
     map['path_json'] = Variable<String>(pathJson);
     map['segments_json'] = Variable<String>(segmentsJson);
@@ -347,6 +399,12 @@ class Run extends DataClass implements Insertable<Run> {
           calories == null && nullToAbsent
               ? const Value.absent()
               : Value(calories),
+      avgHr:
+          avgHr == null && nullToAbsent ? const Value.absent() : Value(avgHr),
+      avgCadence:
+          avgCadence == null && nullToAbsent
+              ? const Value.absent()
+              : Value(avgCadence),
       pathJson: Value(pathJson),
       segmentsJson: Value(segmentsJson),
       createdAt: Value(createdAt),
@@ -366,6 +424,8 @@ class Run extends DataClass implements Insertable<Run> {
       elapsedSeconds: serializer.fromJson<int>(json['elapsedSeconds']),
       avgSpeedMps: serializer.fromJson<double>(json['avgSpeedMps']),
       calories: serializer.fromJson<int?>(json['calories']),
+      avgHr: serializer.fromJson<int?>(json['avgHr']),
+      avgCadence: serializer.fromJson<int?>(json['avgCadence']),
       pathJson: serializer.fromJson<String>(json['pathJson']),
       segmentsJson: serializer.fromJson<String>(json['segmentsJson']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -382,6 +442,8 @@ class Run extends DataClass implements Insertable<Run> {
       'elapsedSeconds': serializer.toJson<int>(elapsedSeconds),
       'avgSpeedMps': serializer.toJson<double>(avgSpeedMps),
       'calories': serializer.toJson<int?>(calories),
+      'avgHr': serializer.toJson<int?>(avgHr),
+      'avgCadence': serializer.toJson<int?>(avgCadence),
       'pathJson': serializer.toJson<String>(pathJson),
       'segmentsJson': serializer.toJson<String>(segmentsJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -396,6 +458,8 @@ class Run extends DataClass implements Insertable<Run> {
     int? elapsedSeconds,
     double? avgSpeedMps,
     Value<int?> calories = const Value.absent(),
+    Value<int?> avgHr = const Value.absent(),
+    Value<int?> avgCadence = const Value.absent(),
     String? pathJson,
     String? segmentsJson,
     DateTime? createdAt,
@@ -407,6 +471,8 @@ class Run extends DataClass implements Insertable<Run> {
     elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
     avgSpeedMps: avgSpeedMps ?? this.avgSpeedMps,
     calories: calories.present ? calories.value : this.calories,
+    avgHr: avgHr.present ? avgHr.value : this.avgHr,
+    avgCadence: avgCadence.present ? avgCadence.value : this.avgCadence,
     pathJson: pathJson ?? this.pathJson,
     segmentsJson: segmentsJson ?? this.segmentsJson,
     createdAt: createdAt ?? this.createdAt,
@@ -427,6 +493,9 @@ class Run extends DataClass implements Insertable<Run> {
       avgSpeedMps:
           data.avgSpeedMps.present ? data.avgSpeedMps.value : this.avgSpeedMps,
       calories: data.calories.present ? data.calories.value : this.calories,
+      avgHr: data.avgHr.present ? data.avgHr.value : this.avgHr,
+      avgCadence:
+          data.avgCadence.present ? data.avgCadence.value : this.avgCadence,
       pathJson: data.pathJson.present ? data.pathJson.value : this.pathJson,
       segmentsJson:
           data.segmentsJson.present
@@ -446,6 +515,8 @@ class Run extends DataClass implements Insertable<Run> {
           ..write('elapsedSeconds: $elapsedSeconds, ')
           ..write('avgSpeedMps: $avgSpeedMps, ')
           ..write('calories: $calories, ')
+          ..write('avgHr: $avgHr, ')
+          ..write('avgCadence: $avgCadence, ')
           ..write('pathJson: $pathJson, ')
           ..write('segmentsJson: $segmentsJson, ')
           ..write('createdAt: $createdAt')
@@ -462,6 +533,8 @@ class Run extends DataClass implements Insertable<Run> {
     elapsedSeconds,
     avgSpeedMps,
     calories,
+    avgHr,
+    avgCadence,
     pathJson,
     segmentsJson,
     createdAt,
@@ -477,6 +550,8 @@ class Run extends DataClass implements Insertable<Run> {
           other.elapsedSeconds == this.elapsedSeconds &&
           other.avgSpeedMps == this.avgSpeedMps &&
           other.calories == this.calories &&
+          other.avgHr == this.avgHr &&
+          other.avgCadence == this.avgCadence &&
           other.pathJson == this.pathJson &&
           other.segmentsJson == this.segmentsJson &&
           other.createdAt == this.createdAt);
@@ -490,6 +565,8 @@ class RunsCompanion extends UpdateCompanion<Run> {
   final Value<int> elapsedSeconds;
   final Value<double> avgSpeedMps;
   final Value<int?> calories;
+  final Value<int?> avgHr;
+  final Value<int?> avgCadence;
   final Value<String> pathJson;
   final Value<String> segmentsJson;
   final Value<DateTime> createdAt;
@@ -502,6 +579,8 @@ class RunsCompanion extends UpdateCompanion<Run> {
     this.elapsedSeconds = const Value.absent(),
     this.avgSpeedMps = const Value.absent(),
     this.calories = const Value.absent(),
+    this.avgHr = const Value.absent(),
+    this.avgCadence = const Value.absent(),
     this.pathJson = const Value.absent(),
     this.segmentsJson = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -515,6 +594,8 @@ class RunsCompanion extends UpdateCompanion<Run> {
     required int elapsedSeconds,
     required double avgSpeedMps,
     this.calories = const Value.absent(),
+    this.avgHr = const Value.absent(),
+    this.avgCadence = const Value.absent(),
     required String pathJson,
     required String segmentsJson,
     this.createdAt = const Value.absent(),
@@ -535,6 +616,8 @@ class RunsCompanion extends UpdateCompanion<Run> {
     Expression<int>? elapsedSeconds,
     Expression<double>? avgSpeedMps,
     Expression<int>? calories,
+    Expression<int>? avgHr,
+    Expression<int>? avgCadence,
     Expression<String>? pathJson,
     Expression<String>? segmentsJson,
     Expression<DateTime>? createdAt,
@@ -548,6 +631,8 @@ class RunsCompanion extends UpdateCompanion<Run> {
       if (elapsedSeconds != null) 'elapsed_seconds': elapsedSeconds,
       if (avgSpeedMps != null) 'avg_speed_mps': avgSpeedMps,
       if (calories != null) 'calories': calories,
+      if (avgHr != null) 'avg_hr': avgHr,
+      if (avgCadence != null) 'avg_cadence': avgCadence,
       if (pathJson != null) 'path_json': pathJson,
       if (segmentsJson != null) 'segments_json': segmentsJson,
       if (createdAt != null) 'created_at': createdAt,
@@ -563,6 +648,8 @@ class RunsCompanion extends UpdateCompanion<Run> {
     Value<int>? elapsedSeconds,
     Value<double>? avgSpeedMps,
     Value<int?>? calories,
+    Value<int?>? avgHr,
+    Value<int?>? avgCadence,
     Value<String>? pathJson,
     Value<String>? segmentsJson,
     Value<DateTime>? createdAt,
@@ -576,6 +663,8 @@ class RunsCompanion extends UpdateCompanion<Run> {
       elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
       avgSpeedMps: avgSpeedMps ?? this.avgSpeedMps,
       calories: calories ?? this.calories,
+      avgHr: avgHr ?? this.avgHr,
+      avgCadence: avgCadence ?? this.avgCadence,
       pathJson: pathJson ?? this.pathJson,
       segmentsJson: segmentsJson ?? this.segmentsJson,
       createdAt: createdAt ?? this.createdAt,
@@ -607,6 +696,12 @@ class RunsCompanion extends UpdateCompanion<Run> {
     if (calories.present) {
       map['calories'] = Variable<int>(calories.value);
     }
+    if (avgHr.present) {
+      map['avg_hr'] = Variable<int>(avgHr.value);
+    }
+    if (avgCadence.present) {
+      map['avg_cadence'] = Variable<int>(avgCadence.value);
+    }
     if (pathJson.present) {
       map['path_json'] = Variable<String>(pathJson.value);
     }
@@ -632,6 +727,8 @@ class RunsCompanion extends UpdateCompanion<Run> {
           ..write('elapsedSeconds: $elapsedSeconds, ')
           ..write('avgSpeedMps: $avgSpeedMps, ')
           ..write('calories: $calories, ')
+          ..write('avgHr: $avgHr, ')
+          ..write('avgCadence: $avgCadence, ')
           ..write('pathJson: $pathJson, ')
           ..write('segmentsJson: $segmentsJson, ')
           ..write('createdAt: $createdAt, ')
@@ -720,6 +817,26 @@ class $RunningTicksTable extends RunningTicks
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hrMeta = const VerificationMeta('hr');
+  @override
+  late final GeneratedColumn<int> hr = GeneratedColumn<int>(
+    'hr',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cadenceMeta = const VerificationMeta(
+    'cadence',
+  );
+  @override
+  late final GeneratedColumn<int> cadence = GeneratedColumn<int>(
+    'cadence',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isPausedMeta = const VerificationMeta(
     'isPaused',
   );
@@ -744,6 +861,8 @@ class $RunningTicksTable extends RunningTicks
     altitude,
     accuracy,
     speedMps,
+    hr,
+    cadence,
     isPaused,
   ];
   @override
@@ -803,6 +922,15 @@ class $RunningTicksTable extends RunningTicks
         speedMps.isAcceptableOrUnknown(data['speed_mps']!, _speedMpsMeta),
       );
     }
+    if (data.containsKey('hr')) {
+      context.handle(_hrMeta, hr.isAcceptableOrUnknown(data['hr']!, _hrMeta));
+    }
+    if (data.containsKey('cadence')) {
+      context.handle(
+        _cadenceMeta,
+        cadence.isAcceptableOrUnknown(data['cadence']!, _cadenceMeta),
+      );
+    }
     if (data.containsKey('is_paused')) {
       context.handle(
         _isPausedMeta,
@@ -850,6 +978,14 @@ class $RunningTicksTable extends RunningTicks
         DriftSqlType.double,
         data['${effectivePrefix}speed_mps'],
       ),
+      hr: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}hr'],
+      ),
+      cadence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cadence'],
+      ),
       isPaused:
           attachedDatabase.typeMapping.read(
             DriftSqlType.bool,
@@ -872,6 +1008,8 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
   final double? altitude;
   final double? accuracy;
   final double? speedMps;
+  final int? hr;
+  final int? cadence;
   final bool isPaused;
   const RunningTick({
     required this.seq,
@@ -881,6 +1019,8 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
     this.altitude,
     this.accuracy,
     this.speedMps,
+    this.hr,
+    this.cadence,
     required this.isPaused,
   });
   @override
@@ -898,6 +1038,12 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
     }
     if (!nullToAbsent || speedMps != null) {
       map['speed_mps'] = Variable<double>(speedMps);
+    }
+    if (!nullToAbsent || hr != null) {
+      map['hr'] = Variable<int>(hr);
+    }
+    if (!nullToAbsent || cadence != null) {
+      map['cadence'] = Variable<int>(cadence);
     }
     map['is_paused'] = Variable<bool>(isPaused);
     return map;
@@ -921,6 +1067,11 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
           speedMps == null && nullToAbsent
               ? const Value.absent()
               : Value(speedMps),
+      hr: hr == null && nullToAbsent ? const Value.absent() : Value(hr),
+      cadence:
+          cadence == null && nullToAbsent
+              ? const Value.absent()
+              : Value(cadence),
       isPaused: Value(isPaused),
     );
   }
@@ -938,6 +1089,8 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
       altitude: serializer.fromJson<double?>(json['altitude']),
       accuracy: serializer.fromJson<double?>(json['accuracy']),
       speedMps: serializer.fromJson<double?>(json['speedMps']),
+      hr: serializer.fromJson<int?>(json['hr']),
+      cadence: serializer.fromJson<int?>(json['cadence']),
       isPaused: serializer.fromJson<bool>(json['isPaused']),
     );
   }
@@ -952,6 +1105,8 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
       'altitude': serializer.toJson<double?>(altitude),
       'accuracy': serializer.toJson<double?>(accuracy),
       'speedMps': serializer.toJson<double?>(speedMps),
+      'hr': serializer.toJson<int?>(hr),
+      'cadence': serializer.toJson<int?>(cadence),
       'isPaused': serializer.toJson<bool>(isPaused),
     };
   }
@@ -964,6 +1119,8 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
     Value<double?> altitude = const Value.absent(),
     Value<double?> accuracy = const Value.absent(),
     Value<double?> speedMps = const Value.absent(),
+    Value<int?> hr = const Value.absent(),
+    Value<int?> cadence = const Value.absent(),
     bool? isPaused,
   }) => RunningTick(
     seq: seq ?? this.seq,
@@ -973,6 +1130,8 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
     altitude: altitude.present ? altitude.value : this.altitude,
     accuracy: accuracy.present ? accuracy.value : this.accuracy,
     speedMps: speedMps.present ? speedMps.value : this.speedMps,
+    hr: hr.present ? hr.value : this.hr,
+    cadence: cadence.present ? cadence.value : this.cadence,
     isPaused: isPaused ?? this.isPaused,
   );
   RunningTick copyWithCompanion(RunningTicksCompanion data) {
@@ -984,6 +1143,8 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
       altitude: data.altitude.present ? data.altitude.value : this.altitude,
       accuracy: data.accuracy.present ? data.accuracy.value : this.accuracy,
       speedMps: data.speedMps.present ? data.speedMps.value : this.speedMps,
+      hr: data.hr.present ? data.hr.value : this.hr,
+      cadence: data.cadence.present ? data.cadence.value : this.cadence,
       isPaused: data.isPaused.present ? data.isPaused.value : this.isPaused,
     );
   }
@@ -998,14 +1159,26 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
           ..write('altitude: $altitude, ')
           ..write('accuracy: $accuracy, ')
           ..write('speedMps: $speedMps, ')
+          ..write('hr: $hr, ')
+          ..write('cadence: $cadence, ')
           ..write('isPaused: $isPaused')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(seq, ts, lat, lng, altitude, accuracy, speedMps, isPaused);
+  int get hashCode => Object.hash(
+    seq,
+    ts,
+    lat,
+    lng,
+    altitude,
+    accuracy,
+    speedMps,
+    hr,
+    cadence,
+    isPaused,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1017,6 +1190,8 @@ class RunningTick extends DataClass implements Insertable<RunningTick> {
           other.altitude == this.altitude &&
           other.accuracy == this.accuracy &&
           other.speedMps == this.speedMps &&
+          other.hr == this.hr &&
+          other.cadence == this.cadence &&
           other.isPaused == this.isPaused);
 }
 
@@ -1028,6 +1203,8 @@ class RunningTicksCompanion extends UpdateCompanion<RunningTick> {
   final Value<double?> altitude;
   final Value<double?> accuracy;
   final Value<double?> speedMps;
+  final Value<int?> hr;
+  final Value<int?> cadence;
   final Value<bool> isPaused;
   const RunningTicksCompanion({
     this.seq = const Value.absent(),
@@ -1037,6 +1214,8 @@ class RunningTicksCompanion extends UpdateCompanion<RunningTick> {
     this.altitude = const Value.absent(),
     this.accuracy = const Value.absent(),
     this.speedMps = const Value.absent(),
+    this.hr = const Value.absent(),
+    this.cadence = const Value.absent(),
     this.isPaused = const Value.absent(),
   });
   RunningTicksCompanion.insert({
@@ -1047,6 +1226,8 @@ class RunningTicksCompanion extends UpdateCompanion<RunningTick> {
     this.altitude = const Value.absent(),
     this.accuracy = const Value.absent(),
     this.speedMps = const Value.absent(),
+    this.hr = const Value.absent(),
+    this.cadence = const Value.absent(),
     this.isPaused = const Value.absent(),
   }) : ts = Value(ts),
        lat = Value(lat),
@@ -1059,6 +1240,8 @@ class RunningTicksCompanion extends UpdateCompanion<RunningTick> {
     Expression<double>? altitude,
     Expression<double>? accuracy,
     Expression<double>? speedMps,
+    Expression<int>? hr,
+    Expression<int>? cadence,
     Expression<bool>? isPaused,
   }) {
     return RawValuesInsertable({
@@ -1069,6 +1252,8 @@ class RunningTicksCompanion extends UpdateCompanion<RunningTick> {
       if (altitude != null) 'altitude': altitude,
       if (accuracy != null) 'accuracy': accuracy,
       if (speedMps != null) 'speed_mps': speedMps,
+      if (hr != null) 'hr': hr,
+      if (cadence != null) 'cadence': cadence,
       if (isPaused != null) 'is_paused': isPaused,
     });
   }
@@ -1081,6 +1266,8 @@ class RunningTicksCompanion extends UpdateCompanion<RunningTick> {
     Value<double?>? altitude,
     Value<double?>? accuracy,
     Value<double?>? speedMps,
+    Value<int?>? hr,
+    Value<int?>? cadence,
     Value<bool>? isPaused,
   }) {
     return RunningTicksCompanion(
@@ -1091,6 +1278,8 @@ class RunningTicksCompanion extends UpdateCompanion<RunningTick> {
       altitude: altitude ?? this.altitude,
       accuracy: accuracy ?? this.accuracy,
       speedMps: speedMps ?? this.speedMps,
+      hr: hr ?? this.hr,
+      cadence: cadence ?? this.cadence,
       isPaused: isPaused ?? this.isPaused,
     );
   }
@@ -1119,6 +1308,12 @@ class RunningTicksCompanion extends UpdateCompanion<RunningTick> {
     if (speedMps.present) {
       map['speed_mps'] = Variable<double>(speedMps.value);
     }
+    if (hr.present) {
+      map['hr'] = Variable<int>(hr.value);
+    }
+    if (cadence.present) {
+      map['cadence'] = Variable<int>(cadence.value);
+    }
     if (isPaused.present) {
       map['is_paused'] = Variable<bool>(isPaused.value);
     }
@@ -1135,6 +1330,8 @@ class RunningTicksCompanion extends UpdateCompanion<RunningTick> {
           ..write('altitude: $altitude, ')
           ..write('accuracy: $accuracy, ')
           ..write('speedMps: $speedMps, ')
+          ..write('hr: $hr, ')
+          ..write('cadence: $cadence, ')
           ..write('isPaused: $isPaused')
           ..write(')'))
         .toString();
@@ -1642,6 +1839,8 @@ typedef $$RunsTableCreateCompanionBuilder =
       required int elapsedSeconds,
       required double avgSpeedMps,
       Value<int?> calories,
+      Value<int?> avgHr,
+      Value<int?> avgCadence,
       required String pathJson,
       required String segmentsJson,
       Value<DateTime> createdAt,
@@ -1656,6 +1855,8 @@ typedef $$RunsTableUpdateCompanionBuilder =
       Value<int> elapsedSeconds,
       Value<double> avgSpeedMps,
       Value<int?> calories,
+      Value<int?> avgHr,
+      Value<int?> avgCadence,
       Value<String> pathJson,
       Value<String> segmentsJson,
       Value<DateTime> createdAt,
@@ -1702,6 +1903,16 @@ class $$RunsTableFilterComposer extends Composer<_$AppDatabase, $RunsTable> {
 
   ColumnFilters<int> get calories => $composableBuilder(
     column: $table.calories,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get avgHr => $composableBuilder(
+    column: $table.avgHr,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get avgCadence => $composableBuilder(
+    column: $table.avgCadence,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1764,6 +1975,16 @@ class $$RunsTableOrderingComposer extends Composer<_$AppDatabase, $RunsTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get avgHr => $composableBuilder(
+    column: $table.avgHr,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get avgCadence => $composableBuilder(
+    column: $table.avgCadence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get pathJson => $composableBuilder(
     column: $table.pathJson,
     builder: (column) => ColumnOrderings(column),
@@ -1816,6 +2037,14 @@ class $$RunsTableAnnotationComposer
   GeneratedColumn<int> get calories =>
       $composableBuilder(column: $table.calories, builder: (column) => column);
 
+  GeneratedColumn<int> get avgHr =>
+      $composableBuilder(column: $table.avgHr, builder: (column) => column);
+
+  GeneratedColumn<int> get avgCadence => $composableBuilder(
+    column: $table.avgCadence,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get pathJson =>
       $composableBuilder(column: $table.pathJson, builder: (column) => column);
 
@@ -1863,6 +2092,8 @@ class $$RunsTableTableManager
                 Value<int> elapsedSeconds = const Value.absent(),
                 Value<double> avgSpeedMps = const Value.absent(),
                 Value<int?> calories = const Value.absent(),
+                Value<int?> avgHr = const Value.absent(),
+                Value<int?> avgCadence = const Value.absent(),
                 Value<String> pathJson = const Value.absent(),
                 Value<String> segmentsJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -1875,6 +2106,8 @@ class $$RunsTableTableManager
                 elapsedSeconds: elapsedSeconds,
                 avgSpeedMps: avgSpeedMps,
                 calories: calories,
+                avgHr: avgHr,
+                avgCadence: avgCadence,
                 pathJson: pathJson,
                 segmentsJson: segmentsJson,
                 createdAt: createdAt,
@@ -1889,6 +2122,8 @@ class $$RunsTableTableManager
                 required int elapsedSeconds,
                 required double avgSpeedMps,
                 Value<int?> calories = const Value.absent(),
+                Value<int?> avgHr = const Value.absent(),
+                Value<int?> avgCadence = const Value.absent(),
                 required String pathJson,
                 required String segmentsJson,
                 Value<DateTime> createdAt = const Value.absent(),
@@ -1901,6 +2136,8 @@ class $$RunsTableTableManager
                 elapsedSeconds: elapsedSeconds,
                 avgSpeedMps: avgSpeedMps,
                 calories: calories,
+                avgHr: avgHr,
+                avgCadence: avgCadence,
                 pathJson: pathJson,
                 segmentsJson: segmentsJson,
                 createdAt: createdAt,
@@ -1944,6 +2181,8 @@ typedef $$RunningTicksTableCreateCompanionBuilder =
       Value<double?> altitude,
       Value<double?> accuracy,
       Value<double?> speedMps,
+      Value<int?> hr,
+      Value<int?> cadence,
       Value<bool> isPaused,
     });
 typedef $$RunningTicksTableUpdateCompanionBuilder =
@@ -1955,6 +2194,8 @@ typedef $$RunningTicksTableUpdateCompanionBuilder =
       Value<double?> altitude,
       Value<double?> accuracy,
       Value<double?> speedMps,
+      Value<int?> hr,
+      Value<int?> cadence,
       Value<bool> isPaused,
     });
 
@@ -1999,6 +2240,16 @@ class $$RunningTicksTableFilterComposer
 
   ColumnFilters<double> get speedMps => $composableBuilder(
     column: $table.speedMps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get hr => $composableBuilder(
+    column: $table.hr,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cadence => $composableBuilder(
+    column: $table.cadence,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2052,6 +2303,16 @@ class $$RunningTicksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get hr => $composableBuilder(
+    column: $table.hr,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cadence => $composableBuilder(
+    column: $table.cadence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isPaused => $composableBuilder(
     column: $table.isPaused,
     builder: (column) => ColumnOrderings(column),
@@ -2087,6 +2348,12 @@ class $$RunningTicksTableAnnotationComposer
 
   GeneratedColumn<double> get speedMps =>
       $composableBuilder(column: $table.speedMps, builder: (column) => column);
+
+  GeneratedColumn<int> get hr =>
+      $composableBuilder(column: $table.hr, builder: (column) => column);
+
+  GeneratedColumn<int> get cadence =>
+      $composableBuilder(column: $table.cadence, builder: (column) => column);
 
   GeneratedColumn<bool> get isPaused =>
       $composableBuilder(column: $table.isPaused, builder: (column) => column);
@@ -2131,6 +2398,8 @@ class $$RunningTicksTableTableManager
                 Value<double?> altitude = const Value.absent(),
                 Value<double?> accuracy = const Value.absent(),
                 Value<double?> speedMps = const Value.absent(),
+                Value<int?> hr = const Value.absent(),
+                Value<int?> cadence = const Value.absent(),
                 Value<bool> isPaused = const Value.absent(),
               }) => RunningTicksCompanion(
                 seq: seq,
@@ -2140,6 +2409,8 @@ class $$RunningTicksTableTableManager
                 altitude: altitude,
                 accuracy: accuracy,
                 speedMps: speedMps,
+                hr: hr,
+                cadence: cadence,
                 isPaused: isPaused,
               ),
           createCompanionCallback:
@@ -2151,6 +2422,8 @@ class $$RunningTicksTableTableManager
                 Value<double?> altitude = const Value.absent(),
                 Value<double?> accuracy = const Value.absent(),
                 Value<double?> speedMps = const Value.absent(),
+                Value<int?> hr = const Value.absent(),
+                Value<int?> cadence = const Value.absent(),
                 Value<bool> isPaused = const Value.absent(),
               }) => RunningTicksCompanion.insert(
                 seq: seq,
@@ -2160,6 +2433,8 @@ class $$RunningTicksTableTableManager
                 altitude: altitude,
                 accuracy: accuracy,
                 speedMps: speedMps,
+                hr: hr,
+                cadence: cadence,
                 isPaused: isPaused,
               ),
           withReferenceMapper:

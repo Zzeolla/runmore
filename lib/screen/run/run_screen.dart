@@ -1,20 +1,26 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:runmore/db/app_database.dart';
+import 'package:runmore/model/run_record.dart';
+import 'package:runmore/provider/health_summary_provider.dart';
 import 'package:runmore/provider/live_share_provider.dart';
 import 'package:runmore/provider/run_provider.dart';
 import 'package:runmore/provider/user_provider.dart';
+import 'package:runmore/repository/local_run_repository.dart';
+import 'package:runmore/repository/supabase_run_repository.dart';
 import 'package:runmore/screen/run/run_home_summary_loader.dart';
 import 'package:runmore/screen/run/run_map_view.dart';
+import 'package:runmore/screen/run/widget/countdown_overlay.dart';
 import 'package:runmore/screen/run/widget/guset_limit_dialog.dart';
 import 'package:runmore/screen/run/widget/run_bottom_guest_card.dart';
 import 'package:runmore/screen/run/widget/run_bottom_summary_card.dart';
 import 'package:runmore/screen/run/widget/stats_panel.dart';
 import 'package:runmore/screen/run_summary/run_summary_screen.dart';
-import 'package:runmore/util/pace_segment.dart';
+import 'package:runmore/util/location_permission_ui.dart';
 import 'package:runmore/util/run_encoding.dart';
 import 'package:runmore/util/run_format.dart';
 import 'package:runmore/widget/snackbar.dart';
@@ -30,31 +36,15 @@ class RunScreen extends StatefulWidget {
 }
 
 class _RunScreenState extends State<RunScreen> {
-  Timer? _uiTimer;
-  int _uiElapsedSeconds = 0;
-  bool _lastIsRunning = false;
-  bool _lastIsPaused = false;
-  VoidCallback? _runListener;
-
-  // 로그인 요약용
   Future<RunHomeSummary>? _summaryFuture;
+
+  bool _showOverlay = false;
+  int _overlaySeconds = 5;
+  Timer? _overlayTimer;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    final run = context.read<RunProvider>();
-
-    if (_runListener != null) {
-      run.removeListener(_runListener!);
-    }
-
-    _runListener = () {
-      if (!mounted) return;
-      _syncUiTimer(run);
-    };
-
-    run.addListener(_runListener!);
 
     final user = context.read<UserProvider>();
     if (user.isLoggedIn && _summaryFuture == null) {
@@ -65,11 +55,7 @@ class _RunScreenState extends State<RunScreen> {
 
   @override
   void dispose() {
-    final run = context.read<RunProvider>();
-    if (_runListener != null) {
-      run.removeListener(_runListener!);
-    }
-    _uiTimer?.cancel();
+    _overlayTimer?.cancel();
     super.dispose();
   }
 
@@ -78,12 +64,11 @@ class _RunScreenState extends State<RunScreen> {
     final run = context.watch<RunProvider>();
     final user = context.watch<UserProvider>();
 
-    final backendSecs = run.stats.elapsedSeconds;
-    final displaySecs = run.isRunning ? _uiElapsedSeconds : backendSecs;
-
+    final elapsed = run.stats.elapsedSeconds;
     final km = run.stats.distanceMeters / 1000.0;
-    final pace = formatPaceFromMPerSec(run.stats.avgSpeedMps);
-    final time = formatElapsed(displaySecs);
+
+    final pace = _formatPaceOrDash(run.stats.avgSpeedMps, elapsed);
+    final time = formatElapsed(elapsed);
 
     return Scaffold(
       appBar: AppBar(title: const Text('런모아')),
@@ -104,6 +89,8 @@ class _RunScreenState extends State<RunScreen> {
               isRunning: run.isRunning,
               isPaused: run.isPaused,
               onStart: () async {
+                if (_showOverlay || run.isSessionActive) return;
+
                 final user = context.read<UserProvider>();
                 final live = context.read<LiveShareProvider>();
 
@@ -111,35 +98,50 @@ class _RunScreenState extends State<RunScreen> {
                   await showGuestLimitDialog(context);
                 }
 
-                final ok = await run.ensurePermission();
-                if (!ok && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('위치 권한을 허용해 주세요.')),
+                final ok = await ensureRunLocationPermissionWithUi(context);
+                if (!ok) return;
+
+                // ✅ 1) preStart 먼저
+                try {
+                  await run.preStart();
+                } catch (_) {
+                  if (!mounted) return;
+                  showRunSnackBar(
+                    context,
+                    icon: '⚠️',
+                    message: '러닝 준비에 실패했습니다. 알림/배터리 설정을 확인해 주세요.',
                   );
                   return;
                 }
 
+                // ✅ 2) 카운트다운 시작
                 run.resetPath();
+                _startOverlayCountdown(
+                  seconds: 5,
+                  onDone: () async {
+                    // ✅ 3) 카운트다운 끝나면 startRun
+                    await run.startRun();
 
-                // 새 런 시작이니 UI 타이머도 0으로
-                await run.start();
-                setState(() => _uiElapsedSeconds = run.stats.elapsedSeconds);
-
-                // ✅ 라이브 방에 들어가 있고 + 로그인이라면 “달리는 중” ON
-                if (user.isLoggedIn && live.isInRoom) {
-                  await live.setRunningActive(active: true);
-                }
+                    if (user.isLoggedIn && live.isInRoom) {
+                      await live.setRunningActive(active: true);
+                    }
+                  },
+                );
               },
               onPause: run.pause,
               onResume: run.resume,
               onStop: () async {
+                if (_showOverlay) return;
+
                 final user = context.read<UserProvider>();
                 final live = context.read<LiveShareProvider>();
+                final health = context.read<HealthSummaryProvider>();
 
                 final stats = run.stats;
                 final path = run.path;
+                final distanceMeters = stats.distanceMeters;
 
-                if (stats.distanceMeters < kMinAutoSaveM) {
+                if (distanceMeters < kMinAutoSaveM) {
                   await run.stop();
 
                   if (user.isLoggedIn && live.isInRoom) {
@@ -157,32 +159,64 @@ class _RunScreenState extends State<RunScreen> {
 
                 final startedAt = run.startedAt!;
                 await run.stop();
-                final endedAt = run.endedAt!;
-                final segments = buildPaceSegments(run.ticks);
+                final endedAt = run.endedAt ?? DateTime.now();
+                final segments = run.segments;
+
+                final summary = await health.fetchNearestSummary(
+                  startedAt: startedAt,
+                  endedAt: endedAt,
+                  distanceMeters: distanceMeters,
+                );
+
+                // ✅ stats에 health summary 합치기 (copyWith에 calories/avgHr/avgCadence 추가한 버전 기준)
+                final enrichedStats = stats.copyWith(
+                  calories: summary?.calories,
+                  avgHr: summary?.avgHr,
+                  avgCadence: summary?.avgCadence,
+                );
 
                 if (user.isLoggedIn) {
-                  // TODO: Supabase 저장 로직 반영 예정
+                  final runId = const Uuid().v4();
+
+                  // ✅ encode -> jsonDecode 해서 jsonb(List<Map>)로 넣기
+                  final pathJson = (jsonDecode(encodePath(path)) as List)
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .toList();
+
+                  final segmentsJson = (jsonDecode(encodeSegments(segments)) as List)
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .toList();
+
+                  final record = RunRecord(
+                    id: runId,
+                    userId: user.userId!,
+                    startedAt: startedAt,
+                    endedAt: endedAt,
+                    distanceM: enrichedStats.distanceMeters,
+                    elapsedS: enrichedStats.elapsedSeconds,
+                    avgSpeedMps: enrichedStats.avgSpeedMps,
+                    calories: enrichedStats.calories,
+                    avgHr: enrichedStats.avgHr,
+                    avgCadence: enrichedStats.avgCadence,
+                    pathJson: pathJson,
+                    segmentsJson: segmentsJson,
+                    liveRoomId: live.isInRoom ? live.room!.id : null,
+                    createdAt: DateTime.now(),
+                  );
+
+                  await SupabaseRunRepository().upsertRun(record);
+
+                  // ✅ 라이브면 종료 + 이번 runId 연결까지
+                  if (live.isInRoom) {
+                    await live.setRunningActive(active: false, runId: runId);
+                  }
                 } else {
                   final db = context.read<AppDatabase>();
-
-                  // 기존 기록 3개 제한
-                  final existingRuns = await (db.select(db.runs)
-                    ..orderBy([
-                          (tbl) => drift.OrderingTerm(
-                        expression: tbl.createdAt,
-                        mode: drift.OrderingMode.asc,
-                      ),
-                    ]))
-                      .get();
-
-                  if (existingRuns.length >= 3) {
-                    final oldest = existingRuns.first;
-                    await db.delete(db.runs).delete(oldest);
-                  }
+                  final repo = LocalRunRepository(db);
 
                   final runId = const Uuid().v4();
 
-                  await db.into(db.runs).insert(
+                  await repo.saveRunWithLimit(
                     RunsCompanion.insert(
                       id: runId,
                       startedAt: startedAt,
@@ -190,25 +224,22 @@ class _RunScreenState extends State<RunScreen> {
                       distanceMeters: stats.distanceMeters,
                       elapsedSeconds: stats.elapsedSeconds,
                       avgSpeedMps: stats.avgSpeedMps,
-                      calories: const drift.Value(null),
+                      calories: drift.Value(summary?.calories),
+                      avgHr: drift.Value(summary?.avgHr),
+                      avgCadence: drift.Value(summary?.avgCadence),
                       pathJson: encodePath(path),
                       segmentsJson: encodeSegments(segments),
                     ),
+                    maxKeep: 3,
                   );
                 }
-
-                // ✅ 라이브 방 + 로그인: 달리기 종료 + (저장 성공했으면) run_id 남기기
-                if (user.isLoggedIn && live.isInRoom) {
-                  await live.setRunningActive(active: false);
-                }
-
 
                 // 요약 화면 이동
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => RunSummaryScreen(
-                      stats: stats,
+                      stats: enrichedStats,
                       path: path,
                       segments: segments,
                       startedAt: startedAt,
@@ -230,69 +261,54 @@ class _RunScreenState extends State<RunScreen> {
                 return RunBottomSummaryCard(snapshot: snapshot);
               },
             ),
+          if (_showOverlay) CountdownOverlay(seconds: _overlaySeconds),
         ],
       ),
     );
   }
 
+
   // ---------------------------
-  // UI 타이머 (표시용)
+  // overlay countdown
   // ---------------------------
 
-  void _syncUiTimer(RunProvider run) {
-    final isRunning = run.isRunning;
-    final isPaused = run.isPaused;
+  void _startOverlayCountdown({
+    required int seconds,
+    required Future<void> Function() onDone,
+  }) {
+    _overlayTimer?.cancel();
 
-    if (isRunning && !_lastIsRunning) {
-      _uiElapsedSeconds = run.stats.elapsedSeconds;
-      _startUiTimer();
-    }
+    setState(() {
+      _showOverlay = true;
+      _overlaySeconds = seconds; // 3부터 시작
+    });
 
-    if (!isRunning && _lastIsRunning) {
-      _stopUiTimer();
-      _uiElapsedSeconds = run.stats.elapsedSeconds;
-    }
-
-    // ✅ pause/resume 변화 처리
-    if (isRunning && _lastIsRunning) {
-      // pause로 바뀜 -> 타이머 멈춤 + backend로 고정
-      if (isPaused && !_lastIsPaused) {
-        _stopUiTimer();
-        _uiElapsedSeconds = run.stats.elapsedSeconds;
-      }
-
-      // resume으로 바뀜 -> backend로 맞춘 뒤 타이머 재개
-      if (!isPaused && _lastIsPaused) {
-        _uiElapsedSeconds = run.stats.elapsedSeconds;
-        _startUiTimer();
-      }
-    }
-
-    _lastIsRunning = isRunning;
-    _lastIsPaused = isPaused;
-  }
-
-  void _startUiTimer() {
-    _uiTimer?.cancel();
-    _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _overlayTimer = Timer.periodic(const Duration(seconds: 1), (t) async {
       if (!mounted) return;
-      final run = context.read<RunProvider>();
 
-      if (!run.isRunning || run.isPaused) return;
+      // 3 -> 2 -> 1 -> 0(START 표시) -> 종료
+      final next = _overlaySeconds - 1;
+      setState(() => _overlaySeconds = next);
 
-      setState(() => _uiElapsedSeconds++);
+      if (next <= 0) {
+        // START를 잠깐 보여주고 싶으면 여기서 딜레이를 주면 됨
+        t.cancel();
+        _overlayTimer = null;
 
-      final backend = run.stats.elapsedSeconds;
+        // START를 250ms 보여주고 시작(원하면 0으로)
+        await Future.delayed(const Duration(milliseconds: 250));
 
-      // 백엔드가 훨씬 앞서가면 따라잡기
-      if (backend - _uiElapsedSeconds > 3) {
-        setState(() => _uiElapsedSeconds = backend);
+        if (!mounted) return;
+        setState(() => _showOverlay = false);
+
+        await onDone();
       }
     });
   }
 
-  void _stopUiTimer() {
-    _uiTimer?.cancel();
-    _uiTimer = null;
+  String _formatPaceOrDash(double avgSpeedMps, int elapsedSeconds) {
+    if (elapsedSeconds <= 0) return '--:--';
+    if (!avgSpeedMps.isFinite || avgSpeedMps < 0.8) return '--:--';
+    return formatPaceFromMPerSec(avgSpeedMps);
   }
 }

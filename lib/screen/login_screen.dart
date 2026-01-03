@@ -45,10 +45,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!_didSyncAfterLogin) {
         _didSyncAfterLogin = true;
 
-        final db = context.read<AppDatabase>();
-        final syncService = RunSyncService(db: db);
-
-        await syncService.syncLocalRunsToSupabase(userId: userProvider.userId!);
+        try {
+          final db = context.read<AppDatabase>();
+          final syncService = RunSyncService(db: db);
+          await syncService.syncLocalRunsToSupabase(userId: userProvider.userId!);
+        } catch (e) {
+          // 실패해도 로그인은 진행
+          debugPrint('run sync failed: $e');
+        }
       }
 
       // ✅ 2. 로그인 화면 닫기 (원래 화면으로 복귀)

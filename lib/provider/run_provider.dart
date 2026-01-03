@@ -20,6 +20,7 @@ class RunProvider extends ChangeNotifier {
     isPaused: false, // 👈 RunStats에 이 필드 있다고 가정
   );
   bool _isRunning = false;
+  bool _isSessionActive = false;
   final List<NLatLng> _path = [];
   final List<RunTick> _ticks = [];
   final List<PaceSegment> _segments = [];
@@ -28,6 +29,7 @@ class RunProvider extends ChangeNotifier {
   bool _ttsBlocked = false;
   bool _wasAutoPaused = false;
   DateTime? _lastTtsAt;
+  bool _resumeRequestedByUser = false;
 
   DateTime? _startedAt;
   DateTime? _endedAt;
@@ -37,9 +39,11 @@ class RunProvider extends ChangeNotifier {
   StreamSubscription<RunTick>? _tickSub;
   StreamSubscription<PaceSegment>? _segSub;
   StreamSubscription<Map<String, dynamic>>? _pauseSub;
+  StreamSubscription<DateTime>? _startedSub;
 
   RunStats get stats => _stats;
   bool get isRunning => _isRunning;
+  bool get isSessionActive => _isSessionActive;
   bool get isPaused => _stats.isPaused;
   List<NLatLng> get path => List.unmodifiable(_path);
   List<RunTick> get ticks => List.unmodifiable(_ticks);
@@ -49,10 +53,19 @@ class RunProvider extends ChangeNotifier {
 
   Future<bool> ensurePermission() => _svc.ensurePermission();
 
-  Future<void> start() async {
+  Future<void> preStart() async {
+    if (_isSessionActive) return;
+    _isSessionActive = true;
+    _isRunning = false;
+    notifyListeners();
+
+    await _svc.preStart();
+  }
+
+  Future<void> startRun() async {
     if (_isRunning) return;
 
-    _startedAt = DateTime.now();
+    _startedAt = null;
     _endedAt = null;
 
     // 1) 새 런 시작이니까 내부 상태 초기화
@@ -68,19 +81,15 @@ class RunProvider extends ChangeNotifier {
     _ttsBlocked = false;
     _wasAutoPaused = false;
     _lastTtsAt = null;
+    _resumeRequestedByUser = false;
     notifyListeners();
 
-    // 2) 포그라운드 서비스 시작
-    _isRunning = true;
-    notifyListeners();
-
-    await _svc.start();
-
-    // 3) 예전 구독 있으면 끊고, 새로 구독
+    // 구독을 먼저 연결 (started 이벤트 레이스 방지)
     await _statsSub?.cancel();
     await _tickSub?.cancel();
     await _segSub?.cancel();
     await _pauseSub?.cancel();
+    _listenStartedOnce();
 
     _statsSub = _svc.statsStream.listen((s) {
       _stats = s;
@@ -136,7 +145,7 @@ class RunProvider extends ChangeNotifier {
 
         // 수동 pause가 아닌 경우에만 "자동" 안내
         if (!userPaused) {
-          _ttsBlocked = false;       // 말할 때만 잠깐 허용
+          _ttsBlocked = false;      // 말할 때만 잠깐 허용
           await _speak('자동 일시정지');
           _ttsBlocked = true;
         }
@@ -147,18 +156,28 @@ class RunProvider extends ChangeNotifier {
       if (!isPaused && _wasAutoPaused) {
         _wasAutoPaused = false;
 
+        if (_resumeRequestedByUser) {
+          _resumeRequestedByUser = false;
+          _ttsBlocked = false;
+          await _speak('달리기를 다시 시작합니다');
+          return;
+        }
+
         _ttsBlocked = false;
-        await _speak('자동 재개');
+        await _speak('자동 재시작합니다');
         return;
       }
     });
+
+    await _svc.startRun();
   }
 
   Future<void> stop() async {
-    if (!_isRunning) return;
+    if (!_isSessionActive) return;
 
     _endedAt = DateTime.now();
 
+    _isSessionActive = false;
     _isRunning = false;
     _stats = RunStats(
       distanceMeters: _stats.distanceMeters,
@@ -181,6 +200,8 @@ class RunProvider extends ChangeNotifier {
   void pause() {
     if (!_isRunning || _stats.isPaused) return;
 
+    _resumeRequestedByUser = false;
+
     // 1️⃣ 로컬 상태 먼저 pause로 바꿔서 UI 즉시 멈추게
     _stats = RunStats(
       distanceMeters: _stats.distanceMeters,
@@ -197,6 +218,8 @@ class RunProvider extends ChangeNotifier {
   void resume() {
     if (!_isRunning || !_stats.isPaused) return;
 
+    _resumeRequestedByUser = true;
+
     // 1️⃣ 로컬 상태 먼저 resume으로
     _stats = RunStats(
       distanceMeters: _stats.distanceMeters,
@@ -210,7 +233,20 @@ class RunProvider extends ChangeNotifier {
     _svc.resume();
   }
 
+  void _listenStartedOnce() {
+    _startedSub?.cancel();
+    _startedSub = _svc.startedStream.listen((dt) async {
+      _startedAt = dt;
+      _isRunning = true;
+      notifyListeners();
+
+      await _startedSub?.cancel();
+      _startedSub = null;
+    });
+  }
+
   Future<void> restoreFromRunningService() async {
+    // TODO: 이거 제대로 나중에 다시 수정하자; 일단 지금 _svc.requestState() 함수도 의문임
     // 이미 러닝 중이면 중복 복구 방지
     if (_isRunning) return;
 
@@ -335,7 +371,7 @@ class RunProvider extends ChangeNotifier {
 
   String? _buildKmTtsText(PaceSegment seg) {
     // ✅ 1km 구간만 음성 안내 (partial은 원하면 제외)
-    if (seg.distance < 0.99) return null;
+    if (seg.distance < 1) return null;
 
     // 1) 구간 페이스(mm:ss)
     final paceSecPerKm = seg.seconds; // 1km 기준이면 seconds가 그대로 pace
@@ -371,6 +407,7 @@ class RunProvider extends ChangeNotifier {
     _tickSub?.cancel();
     _segSub?.cancel();
     _pauseSub?.cancel();
+    _startedSub?.cancel();
     _tts.stop();
     _svc.dispose();
     super.dispose();

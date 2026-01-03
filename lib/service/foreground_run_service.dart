@@ -4,17 +4,12 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:runmore/background/run_location_task.dart';
 
 class ForegroundRunService {
+  static bool _init = false;
+
   static Future<void> requestNotificationAndBatteryPermissions() async {
-    final notificationPermission =
-    await FlutterForegroundTask.checkNotificationPermission();
+    final notificationPermission = await FlutterForegroundTask.checkNotificationPermission();
     if (notificationPermission != NotificationPermission.granted) {
       await FlutterForegroundTask.requestNotificationPermission();
-    }
-
-    if (Platform.isAndroid) {
-      if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
-        await FlutterForegroundTask.requestIgnoreBatteryOptimization();
-      }
     }
 
     if (Platform.isAndroid) {
@@ -28,6 +23,9 @@ class ForegroundRunService {
   }
 
   static Future<void> initForegroundTask() async {
+    if (_init) return;
+    _init = true;
+
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'runmore_foreground',
@@ -49,11 +47,10 @@ class ForegroundRunService {
   }
 
   static Future<void> startService() async {
-    final perm =
-    await FlutterForegroundTask.checkNotificationPermission();
+    final perm = await FlutterForegroundTask.checkNotificationPermission();
 
     if (perm != NotificationPermission.granted) {
-      // ❗ 여기서 return
+      // TODO: UI(run_screen)에서 예외 잡아줘야 함
       throw Exception('알림 권한이 필요합니다');
     }
 
@@ -70,10 +67,14 @@ class ForegroundRunService {
       callback: runLocationStartCallback,
     );
   }
-  // TODO: 앱을 껐을 경우를 대비해 알람에도 종료 추가해주기
+
+
   static Future<void> stopService() async {
+    // TODO: 앱을 껐을 경우를 대비해 알람에도 종료 추가해주기
+    // TODO: 앱이 백그라운드 갔다가 다시 들어오면 화면 재진입 이걸 restartservicce로 처리하려고 하는데, 이게 내부 변수들 초기값으로 리셋될 수 있대, 잘 이해가 안가긴 하지만 나중에 체크해보자
     if (await FlutterForegroundTask.isRunningService) {
       await FlutterForegroundTask.stopService();
     }
+    return;
   }
 }

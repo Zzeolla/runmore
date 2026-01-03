@@ -58,6 +58,14 @@
 		<string>러닝 중 위치 정보가 필요합니다.</string>
 		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 		<string>러닝 중 위치 정보가 필요합니다.</string>
+		<key>UIBackgroundModes</key>
+        <array>
+          <string>location</string>
+        </array>
+        <key>NSHealthShareUsageDescription</key>
+        <string>러닝 요약을 위해 건강 데이터(심박수/칼로리/케이던스)를 읽습니다.</string>
+        <key>NSHealthUpdateUsageDescription</key>
+        <string>러닝 요약을 위해 건강 데이터에 접근합니다.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

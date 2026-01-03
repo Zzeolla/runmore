@@ -3,6 +3,7 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:provider/provider.dart';
 import 'package:runmore/db/app_database.dart';
 import 'package:runmore/provider/run_provider.dart';
+import 'package:runmore/repository/local_run_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -39,11 +40,13 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (isServiceRunning) {
-      final db = context.read<AppDatabase>();
       final run = context.read<RunProvider>();
-
-      await run.restoreFromRunningDb(db);
+      // TODO: run.restoreFromRunningService 함수는 정비 필요, restoreFromRunningDb는 지워도 될라나?
       await run.restoreFromRunningService();
+    } else {
+      final db = context.read<AppDatabase>();
+      final localRepo = LocalRunRepository(db);
+      await localRepo.clearTempRun();
     }
 
     if (!mounted) return;

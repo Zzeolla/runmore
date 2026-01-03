@@ -4,6 +4,8 @@ class RunTick {
   final double lng;           // 경도 (longitude)
   final double? altitude;     // 고도 (altitude, optional)
   final double speedMps;      // 순간 속도 (m/s)
+  final int? hr;
+  final int? cadence;
   final bool isPaused;
   RunTick({
     required this.ts,
@@ -11,6 +13,8 @@ class RunTick {
     required this.lng,
     this.altitude,
     required this.speedMps,
+    this.hr,
+    this.cadence,
     required this.isPaused,
   });
 }
@@ -22,6 +26,8 @@ extension RunTickJson on RunTick {
     'lng': lng,
     if (altitude != null) 'altitude': altitude,
     'speed': speedMps,
+    if (hr != null) 'hr': hr,
+    if (cadence != null) 'cadence': cadence,
     'isPaused': isPaused,
   };
 }

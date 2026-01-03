@@ -3,11 +3,17 @@ class RunStats {
   final int elapsedSeconds;       // 경과 시간 (초)
   final double avgSpeedMps;       // 평균 속보 (m/s)
   final bool isPaused;           // 일시정지 여부
+  final int? calories;
+  final int? avgHr;
+  final int? avgCadence;
   const RunStats({
     required this.distanceMeters,
     required this.elapsedSeconds,
     required this.avgSpeedMps,
     this.isPaused = false,
+    this.calories,
+    this.avgHr,
+    this.avgCadence,
   });
 
   double get paceSecPerKm => avgSpeedMps > 0 ? 1000.0 / avgSpeedMps : 0.0;
@@ -26,12 +32,18 @@ class RunStats {
     int? elapsedSeconds,
     double? avgSpeedMps,
     bool? isPaused,
+    int? calories,
+    int? avgHr,
+    int? avgCadence,
   }) {
     return RunStats(
       distanceMeters: distanceMeters ?? this.distanceMeters,
       elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
       avgSpeedMps: avgSpeedMps ?? this.avgSpeedMps,
       isPaused: isPaused ?? this.isPaused,
+      calories: calories ?? this.calories,
+      avgHr: avgHr ?? this.avgHr,
+      avgCadence: avgCadence ?? this.avgCadence,
     );
   }
 }

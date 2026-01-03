@@ -15,6 +15,9 @@ class Runs extends Table {
 
   // 선택: 칼로리
   IntColumn get calories => integer().nullable()();
+  IntColumn get avgHr => integer().nullable()();
+  IntColumn get avgCadence => integer().nullable()();
+
 
   // 경로: [{ "lat": 37.5, "lng": 126.9 }, ...] JSON 문자열
   TextColumn get pathJson => text()();
@@ -39,6 +42,8 @@ class RunningTicks extends Table {
   RealColumn get altitude => real().nullable()();
   RealColumn get accuracy => real().nullable()();
   RealColumn get speedMps => real().nullable()();
+  IntColumn get hr => integer().nullable()();        // heart rate (bpm)
+  IntColumn get cadence => integer().nullable()();   // cadence (spm)
   BoolColumn get isPaused => boolean().withDefault(const Constant(false))();
 }
 

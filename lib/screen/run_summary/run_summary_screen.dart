@@ -5,8 +5,8 @@ import 'package:runmore/model/pace_segment.dart';
 import 'package:runmore/model/run_stats.dart';
 import 'package:runmore/screen/run_summary/widget/pace_line_chart.dart';
 import 'package:runmore/screen/run_summary/widget/pace_table.dart';
-import 'package:runmore/util/run_format.dart';
 import 'package:runmore/util/run_encoding.dart';
+import 'package:runmore/util/run_format.dart';
 
 class RunSummaryScreen extends StatefulWidget {
   final RunStats stats;
@@ -82,6 +82,11 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
     final km = widget.stats.distanceMeters / 1000.0;
     final time = formatHms(widget.stats.elapsedSeconds);
     final pace = formatPaceFromMPerSec(widget.stats.avgSpeedMps);
+
+    final calories = widget.stats.calories;
+    final avgHr = widget.stats.avgHr;
+    final avgCadence = widget.stats.avgCadence;
+
     final segments = _visibleSegments(widget.segments);
     final lastPartial = _extractLastPartial(widget.segments);
 
@@ -89,9 +94,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
     final bg = theme.colorScheme.surfaceVariant.withOpacity(0.15);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('러닝 요약'),
-      ),
+      appBar: AppBar(title: const Text('러닝 요약')),
       backgroundColor: bg,
       body: SafeArea(
         child: Column(
@@ -102,7 +105,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildSummaryCard(km, time, pace),
+                    _buildSummaryCard(km, time, pace, calories, avgHr, avgCadence),
                     const SizedBox(height: 16),
                     _buildMapCard(),
                     const SizedBox(height: 16),
@@ -134,7 +137,14 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
   }
 
   // ───────────────── 요약 카드 ─────────────────
-  Widget _buildSummaryCard(double km, String time, String pace) {
+  Widget _buildSummaryCard(
+    double km,
+    String time,
+    String pace,
+    int? calories,
+    int? avgHr,
+    int? avgCadence,
+  ) {
     final theme = Theme.of(context);
 
     final dateText = _formatDateRange(widget.startedAt, widget.endedAt);
@@ -158,11 +168,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
           // ⬆️ 맨 위에 날짜/시간
           Row(
             children: [
-              Icon(
-                Icons.access_time,
-                size: 16,
-                color: Colors.grey[600],
-              ),
+              Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -183,18 +189,34 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              _buildStatItem(label: '거리', value: km.toStringAsFixed(2), unit: 'km'),
+              _buildStatItem(label: '시간', value: time),
+              _buildStatItem(label: '평균 페이스', value: pace),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+          Divider(height: 1, color: Colors.grey.withOpacity(0.15)),
+          const SizedBox(height: 12),
+
+          // 2줄: 칼로리 / 평균 심박수 / 평균 케이던스
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
               _buildStatItem(
-                label: '거리',
-                value: km.toStringAsFixed(2),
-                unit: 'km',
+                label: '칼로리',
+                value: calories != null ? calories.toString() : '--',
+                unit: 'kcal',
               ),
               _buildStatItem(
-                label: '시간',
-                value: time,
+                label: '평균 심박수',
+                value: avgHr != null ? avgHr.toString() : '--',
+                unit: 'bpm',
               ),
               _buildStatItem(
-                label: '평균 페이스',
-                value: pace,
+                label: '평균 케이던스',
+                value: avgCadence != null ? avgCadence.toString() : '--',
+                unit: 'spm',
               ),
             ],
           ),
@@ -203,30 +225,26 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
     );
   }
 
-
-  Widget _buildStatItem({
-    required String label,
-    required String value,
-    String? unit,
-  }) {
+  Widget _buildStatItem({required String label, required String value, String? unit}) {
     final theme = Theme.of(context);
+    final isDash = value == '--';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
         const SizedBox(height: 4),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               value,
-              style: theme.textTheme.headlineSmall?.copyWith(
+              style: (isDash
+                  ? theme.textTheme.titleLarge
+                  : theme.textTheme.headlineSmall)
+                  ?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: isDash ? Colors.grey[600] : null,
               ),
             ),
             if (unit != null) ...[
@@ -289,18 +307,12 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
                     color: theme.colorScheme.primary.withOpacity(0.08),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    Icons.route,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
+                  child: Icon(Icons.route, size: 16, color: theme.colorScheme.primary),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '달린 경로',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -310,9 +322,8 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
             child: NaverMap(
               options: NaverMapViewOptions(
                 initialCameraPosition: NCameraPosition(
-                  target: widget.path.isNotEmpty
-                      ? widget.path.first
-                      : const NLatLng(37.5665, 126.9780),
+                  target:
+                      widget.path.isNotEmpty ? widget.path.first : const NLatLng(37.5665, 126.9780),
                   zoom: 14,
                 ),
                 locationButtonEnable: false,
@@ -332,10 +343,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
   }
 
   // ───────────────── 페이스 분석 카드 ─────────────────
-  Widget _buildPaceAnalysisCard(
-      List<PaceSegment> segments,
-      PaceSegment? lastPartial,
-      ) {
+  Widget _buildPaceAnalysisCard(List<PaceSegment> segments, PaceSegment? lastPartial) {
     final theme = Theme.of(context);
 
     return Container(
@@ -364,18 +372,12 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
                   color: theme.colorScheme.primary.withOpacity(0.08),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.show_chart,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                ),
+                child: Icon(Icons.show_chart, size: 16, color: theme.colorScheme.primary),
               ),
               const SizedBox(width: 8),
               Text(
                 '페이스 분석',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -384,10 +386,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
           PaceLineChart(segments: segments),
           const SizedBox(height: 12),
           // 테이블
-          PaceTable(
-            segments: segments,
-            lastPartial: lastPartial,
-          ),
+          PaceTable(segments: segments, lastPartial: lastPartial),
         ],
       ),
     );
@@ -416,10 +415,7 @@ class _RunSummaryScreenState extends State<RunSummaryScreen> {
       );
     } else {
       final bounds = NLatLngBounds.from(points);
-      final update = NCameraUpdate.fitBounds(
-        bounds,
-        padding: const EdgeInsets.all(40),
-      );
+      final update = NCameraUpdate.fitBounds(bounds, padding: const EdgeInsets.all(40));
       await _mapController!.updateCamera(update);
     }
   }

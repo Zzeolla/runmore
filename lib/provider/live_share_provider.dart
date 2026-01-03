@@ -11,6 +11,9 @@ import 'package:runmore/model/room.dart';
 class LiveShareProvider extends ChangeNotifier {
   final SupabaseClient _client = Supabase.instance.client;
 
+  String? _authUserId;
+  bool _authLoggedIn = false;
+
   // ───────────────── 방 / 러너 / 세그먼트 상태 ─────────────────
 
   Room? _room;
@@ -65,6 +68,33 @@ class LiveShareProvider extends ChangeNotifier {
 
   RealtimeChannel? _positionsChannel;
   RealtimeChannel? _roomChannel;
+
+  Future<void> updateAuth({
+    required bool isLoggedIn,
+    required String? userId,
+  }) async {
+    final changed = (_authLoggedIn != isLoggedIn) || (_authUserId != userId);
+    _authLoggedIn = isLoggedIn;
+    _authUserId = userId;
+
+    if (!changed) return;
+
+    // ✅ 로그아웃 되면: 방 상태를 깔끔히 정리 (원하면)
+    if (!isLoggedIn) {
+      // “관람자 모드”로 유지하고 싶으면 _myRunnerId만 null로 해도 되고,
+      // 완전히 방을 나가게 하고 싶으면 leaveRoom() 호출하면 됨.
+      if (_room != null) {
+        leaveRoom();
+      }
+      return;
+    }
+
+    // ✅ 로그인 됐는데 이미 방에 들어가 있는 상태라면:
+    // 참가자 row 보장 + 내 runnerId 재설정 시도
+    if (_room != null) {
+      await _ensureParticipantRowInactive();
+    }
+  }
 
   // ───────────────── 내부 헬퍼 ─────────────────
 
